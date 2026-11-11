@@ -1,0 +1,207 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Safety Net (Default-Deny Catch-All)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection health check document
+    match /test/connection {
+      allow get: if true;
+      allow list, create, update, delete: if false;
+    }
+
+    // Phase 3: Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'bhavikthanki2000@gmail.com'
+      );
+    }
+
+    // Pillar 2: Validation Blueprints (Anti-Update-Gap)
+    function isValidProduct(data) {
+      return data.keys().hasAll(['slug', 'name', 'category', 'fabric', 'price', 'stockTotal', 'createdAt']) &&
+        data.keys().hasOnly(['slug', 'name', 'category', 'fabric', 'price', 'stockTotal', 'createdAt']) &&
+        data.slug is string && data.slug.size() >= 2 && data.slug.size() <= 120 && data.slug.matches('^[a-z0-9\\-]+$') &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 120 &&
+        data.category is string && data.category.size() <= 40 &&
+        data.category in ['Outerwear', 'Knitwear', 'Tailoring', 'Silk & Shirts', 'Accessories'] &&
+        data.fabric is string && data.fabric.size() >= 2 && data.fabric.size() <= 120 &&
+        data.price is number && data.price >= 0 && data.price <= 100000 &&
+        data.stockTotal is number && data.stockTotal >= 0 && data.stockTotal <= 100000 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['orderNumber', 'ownerId', 'totalAmount', 'paymentMethod', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['orderNumber', 'ownerId', 'totalAmount', 'paymentMethod', 'status', 'createdAt', 'updatedAt']) &&
+        data.orderNumber is string && data.orderNumber.size() >= 5 && data.orderNumber.size() <= 64 && data.orderNumber.matches('^[A-Z0-9\\-]+$') &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 500000 &&
+        data.paymentMethod is string && data.paymentMethod.size() <= 32 &&
+        data.paymentMethod in ['card', 'express_pay', 'paypal', 'cod'] &&
+        data.status is string && data.status.size() <= 32 &&
+        data.status in ['Processing', 'Shipped', 'Delivered', 'Refunded'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['productId', 'authorId', 'authorName', 'rating', 'title', 'comment', 'verifiedPurchase', 'createdAt']) &&
+        data.keys().hasOnly(['productId', 'authorId', 'authorName', 'rating', 'title', 'comment', 'verifiedPurchase', 'createdAt']) &&
+        data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 && data.productId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.authorId is string && data.authorId.size() >= 1 && data.authorId.size() <= 128 && data.authorId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.authorId == request.auth.uid &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80 &&
+        data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 120 &&
+        data.comment is string && data.comment.size() >= 5 && data.comment.size() <= 1000 &&
+        data.verifiedPurchase is bool &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUserPrivateProfile(data) {
+      return data.keys().hasAll(['ownerId', 'email', 'fullName', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerId', 'email', 'fullName', 'defaultAddress', 'updatedAt']) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 100 &&
+        (!('defaultAddress' in data) || (data.defaultAddress is string && data.defaultAddress.size() <= 300)) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWishlistItem(data) {
+      return data.keys().hasAll(['ownerId', 'productId', 'createdAt']) &&
+        data.keys().hasOnly(['ownerId', 'productId', 'createdAt']) &&
+        data.ownerId is string && data.ownerId.size() >= 1 && data.ownerId.size() <= 128 && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.ownerId == request.auth.uid &&
+        data.productId is string && data.productId.size() >= 1 && data.productId.size() <= 128 && data.productId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.createdAt is timestamp;
+    }
+
+    // Admins registry (read-only verification document)
+    match /admins/{adminId} {
+      allow get: if isVerifiedUser() && isValidId(adminId) && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    // 1. Products Catalog Collection
+    match /products/{productId} {
+      allow get: if isValidId(productId) && resource.data.price >= 0;
+      allow list: if resource.data.price >= 0;
+      allow create: if isVerifiedUser() && isValidId(productId) && isValidProduct(incoming()) &&
+        incoming().createdAt == request.time && isAdmin();
+      allow update: if isVerifiedUser() && isValidId(productId) && isValidProduct(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().slug == existing().slug &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'category', 'fabric', 'price', 'stockTotal']) &&
+        isAdmin();
+      allow delete: if isVerifiedUser() && isValidId(productId) && isAdmin();
+    }
+
+    // 2. Customer Orders Collection
+    match /orders/{orderId} {
+      allow get: if isVerifiedUser() && isValidId(orderId) &&
+        (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isVerifiedUser() &&
+        (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(orderId) && isValidOrder(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().status == 'Processing' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(orderId) && isValidOrder(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().orderNumber == existing().orderNumber &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() || (
+            existing().ownerId == request.auth.uid &&
+            !(existing().status in ['Delivered', 'Refunded']) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(orderId) && isAdmin();
+    }
+
+    // 3. Product Reviews Collection
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && resource.data.rating >= 1;
+      allow list: if resource.data.rating >= 1;
+      allow create: if isVerifiedUser() && isValidId(reviewId) && isValidReview(incoming()) &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/products/$(incoming().productId));
+      allow update: if isVerifiedUser() && isValidId(reviewId) && isValidReview(incoming()) &&
+        incoming().authorId == existing().authorId &&
+        incoming().productId == existing().productId &&
+        incoming().createdAt == existing().createdAt && (
+          isAdmin() || (
+            existing().authorId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'title', 'comment'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(reviewId) &&
+        (existing().authorId == request.auth.uid || isAdmin());
+    }
+
+    // 4. Isolated User Private Profile (Split Collection PII Isolation)
+    match /users/{userId}/private/{docId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && isValidId(docId) &&
+        (request.auth.uid == userId || isAdmin());
+      allow list: if isVerifiedUser() &&
+        (resource.data.ownerId == request.auth.uid || isAdmin());
+      allow create: if isVerifiedUser() && isValidId(userId) && isValidId(docId) &&
+        request.auth.uid == userId &&
+        isValidUserPrivateProfile(incoming()) &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() && isValidId(userId) && isValidId(docId) &&
+        isValidUserPrivateProfile(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().updatedAt == request.time && (
+          isAdmin() || (
+            request.auth.uid == userId &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['email', 'fullName', 'defaultAddress', 'updatedAt'])
+          )
+        );
+      allow delete: if isVerifiedUser() && isValidId(userId) && isValidId(docId) &&
+        (request.auth.uid == userId || isAdmin());
+    }
+
+    // 5. Customer Wishlists Collection
+    match /wishlists/{wishlistId} {
+      allow get: if isVerifiedUser() && isValidId(wishlistId) &&
+        existing().ownerId == request.auth.uid;
+      allow list: if isVerifiedUser() &&
+        resource.data.ownerId == request.auth.uid;
+      allow create: if isVerifiedUser() && isValidId(wishlistId) && isValidWishlistItem(incoming()) &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/products/$(incoming().productId));
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(wishlistId) &&
+        existing().ownerId == request.auth.uid;
+    }
+  }
+}

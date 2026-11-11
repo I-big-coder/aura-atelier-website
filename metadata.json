@@ -1,0 +1,6 @@
+{
+  "name": "AURA ATELIER – Minimalist Luxury Essentials & Tailoring",
+  "description": "Shop architectural luxury outerwear, Italian merino knitwear, tailored wool trousers, and organic Mulberry silk essentials crafted for modern professionals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

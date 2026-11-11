@@ -1,0 +1,239 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A luxury garment or accessory in the AURA ATELIER catalog.",
+      "type": "object",
+      "properties": {
+        "slug": {
+          "type": "string",
+          "description": "URL-safe unique identifier for the product.",
+          "minLength": 2,
+          "maxLength": 120,
+          "pattern": "^[a-z0-9\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the garment.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "category": {
+          "type": "string",
+          "description": "Primary collection category.",
+          "enum": ["Outerwear", "Knitwear", "Tailoring", "Silk & Shirts", "Accessories"],
+          "maxLength": 40
+        },
+        "fabric": {
+          "type": "string",
+          "description": "Primary fabric composition.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "price": {
+          "type": "number",
+          "description": "Retail price in USD."
+        },
+        "stockTotal": {
+          "type": "number",
+          "description": "Total available inventory across variants."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["slug", "name", "category", "fabric", "price", "stockTotal", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer purchase order placed in the store.",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "description": "Human-readable order tracking identifier.",
+          "minLength": 5,
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9\\-]+$"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the customer who placed the order.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Final order total in USD."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Selected payment method.",
+          "enum": ["card", "express_pay", "paypal", "cod"],
+          "maxLength": 32
+        },
+        "status": {
+          "type": "string",
+          "description": "Current fulfillment status.",
+          "enum": ["Processing", "Shipped", "Delivered", "Refunded"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Order creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last status update timestamp."
+        }
+      },
+      "required": ["orderNumber", "ownerId", "totalAmount", "paymentMethod", "status", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Customer product review and star rating.",
+      "type": "object",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "description": "ID of the reviewed product.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the review author.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "description": "Display name of the reviewer.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating from 1 to 5."
+        },
+        "title": {
+          "type": "string",
+          "description": "Headline of the review.",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "comment": {
+          "type": "string",
+          "description": "Detailed review body.",
+          "minLength": 5,
+          "maxLength": 1000
+        },
+        "verifiedPurchase": {
+          "type": "boolean",
+          "description": "Whether the customer has a verified purchase."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp."
+        }
+      },
+      "required": ["productId", "authorId", "authorName", "rating", "title", "comment", "verifiedPurchase", "createdAt"]
+    },
+    "UserPrivateProfile": {
+      "title": "UserPrivateProfile",
+      "description": "Isolated private customer PII and shipping address data.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the profile owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Customer email address.",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Customer full name.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "defaultAddress": {
+          "type": "string",
+          "description": "Formatted default shipping address.",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last profile update timestamp."
+        }
+      },
+      "required": ["ownerId", "email", "fullName", "updatedAt"]
+    },
+    "WishlistItem": {
+      "title": "WishlistItem",
+      "description": "A saved garment in a user's personal wishlist.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the wishlist owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "productId": {
+          "type": "string",
+          "description": "ID of the wishlisted product.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the item was saved."
+        }
+      },
+      "required": ["ownerId", "productId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Publicly readable luxury catalog items managed by store admins."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders isolated strictly to the order owner or store admin."
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Product reviews readable by shoppers and created by verified authors."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": "UserPrivateProfile",
+      "description": "Split-collection isolated PII profile and shipping details accessible only to the owner or admin."
+    },
+    "/wishlists/{wishlistId}": {
+      "schema": "WishlistItem",
+      "description": "Customer saved wishlist items restricted to the owner."
+    }
+  }
+}
